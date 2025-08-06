@@ -7,6 +7,7 @@ import threading
 import time
 import os
 import re
+import requests
 from typing import Dict, List, Any
 
 # study 모듈 임포트 (기존 코드 유지)
@@ -58,10 +59,7 @@ class MissionAlarmApp:
                 'sound_enabled': True,
                 'vibration_enabled': True
             }
-        if 'easter_egg_mp3' not in st.session_state:
-            st.session_state.easter_egg_mp3 = False
-        if 'easter_egg_mp4' not in st.session_state:
-            st.session_state.easter_egg_mp4 = False
+        # 이스터에그 상태는 main 함수에서 직접 초기화하므로 여기서는 제거
     
     def save_data(self):
         """데이터를 파일에 저장"""
@@ -468,10 +466,14 @@ def show_deadline_youtube_page():
 
 # Google Drive 공유 링크를 직접 다운로드/스트리밍 가능한 링크로 변환하는 함수
 def get_gdrive_direct_link(google_drive_share_link):
+    # Google Drive 공유 링크에서 파일 ID 추출
     file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", google_drive_share_link)
     if file_id_match:
         file_id = file_id_match.group(1)
-        return f"https://drive.google.com/uc?export=download&id={file_id}"
+        # 직접 스트리밍 링크 형식으로 변환 (alt=media 파라미터 사용)
+        return f"https://drive.google.com/uc?export=view&id={file_id}&alt=media"
+    
+    # 폴더 링크인 경우, 파일 ID를 찾을 수 없으므로 None 반환
     return None
 
 # MP3 플레이어 페이지
@@ -479,111 +481,189 @@ def show_mp3_player_page():
     st.header("🎵 MP3 플레이어")
     st.write("구글 드라이브 MP3 폴더의 파일을 재생합니다.")
 
+    # 사용자 제공 MP3 링크 목록
     mp3_links = [
-        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing", # 예시 링크, 실제 파일 링크로 대체 필요
-        # 여기에 사용자의 실제 MP3 파일 공유 링크를 추가하세요.
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing"
     ]
 
-    if not mp3_links:
-        st.info("재생할 MP3 파일 링크가 없습니다. 'mp3' 이스터에그를 통해 추가해주세요.")
-        return
+    # 파일 ID와 파일명 매핑
+    mp3_options = []
+    for link in mp3_links:
+        file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", link)
+        if file_id_match:
+            file_id = file_id_match.group(1)
+            mp3_options.append(f"MP3 파일 {len(mp3_options) + 1} ({file_id[:5]}...)")
+        else:
+            mp3_options.append(f"MP3 파일 {len(mp3_options) + 1} (유효하지 않은 링크)")
 
-    selected_mp3 = st.selectbox("재생할 MP3 선택", mp3_links)
-    direct_link = get_gdrive_direct_link(selected_mp3)
+    selected_mp3_option = st.selectbox("재생할 MP3 선택", mp3_options)
 
-    if direct_link:
-        st.audio(direct_link, format='audio/mp3')
-    else:
-        st.error("유효한 구글 드라이브 MP3 링크가 아닙니다.")
+    if selected_mp3_option:
+        selected_index = mp3_options.index(selected_mp3_option)
+        selected_mp3_link = mp3_links[selected_index]
+        
+        # 임시 파일로 다운로드 후 재생
+        try:
+            file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", selected_mp3_link)
+            if file_id_match:
+                file_id = file_id_match.group(1)
+                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                
+                # 임시 파일 경로 설정
+                temp_file_path = f"./temp_mp3_{file_id}.mp3"
+                
+                # 파일 다운로드
+                with st.spinner(f"MP3 파일 다운로드 중... ({selected_mp3_option})"):
+                    response = requests.get(download_url, stream=True)
+                    response.raise_for_status() # HTTP 오류 발생 시 예외 발생
+                    with open(temp_file_path, "wb") as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                
+                st.audio(temp_file_path, format='audio/mp3')
+                
+                # 재생 후 임시 파일 삭제 (선택 사항, 필요에 따라 유지 가능)
+                # os.remove(temp_file_path)
+            else:
+                st.error("유효한 MP3 파일 링크가 아닙니다.")
+        except requests.exceptions.RequestException as e:
+            st.error(f"MP3 파일 다운로드 중 오류 발생: {e}")
+        except Exception as e:
+            st.error(f"MP3 파일 재생 중 오류 발생: {e}")
 
 # MP4 플레이어 페이지
 def show_mp4_player_page():
     st.header("▶️ MP4 플레이어")
     st.write("구글 드라이브 MP4 폴더의 파일을 재생합니다.")
 
+    # 사용자 제공 MP4 링크 목록
     mp4_links = [
-        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing", # 예시 링크, 실제 파일 링크로 대체 필요
-        # 여기에 사용자의 실제 MP4 파일 공유 링크를 추가하세요.
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
+        "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing"
     ]
 
-    if not mp4_links:
-        st.info("재생할 MP4 파일 링크가 없습니다. 'mp4' 이스터에그를 통해 추가해주세요.")
-        return
+    # 파일 ID와 파일명 매핑
+    mp4_options = []
+    for link in mp4_links:
+        file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", link)
+        if file_id_match:
+            file_id = file_id_match.group(1)
+            mp4_options.append(f"MP4 파일 {len(mp4_options) + 1} ({file_id[:5]}...)")
+        else:
+            mp4_options.append(f"MP4 파일 {len(mp4_options) + 1} (유효하지 않은 링크)")
 
-    selected_mp4 = st.selectbox("재생할 MP4 선택", mp4_links)
-    direct_link = get_gdrive_direct_link(selected_mp4)
+    selected_mp4_option = st.selectbox("재생할 MP4 선택", mp4_options)
 
-    if direct_link:
-        st.video(direct_link, format='video/mp4')
-    else:
-        st.error("유효한 구글 드라이브 MP4 링크가 아닙니다.")
+    if selected_mp4_option:
+        selected_index = mp4_options.index(selected_mp4_option)
+        selected_mp4_link = mp4_links[selected_index]
 
+        # 임시 파일로 다운로드 후 재생
+        try:
+            file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", selected_mp4_link)
+            if file_id_match:
+                file_id = file_id_match.group(1)
+                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                
+                # 임시 파일 경로 설정
+                temp_file_path = f"./temp_mp4_{file_id}.mp4"
+                
+                # 파일 다운로드
+                with st.spinner(f"MP4 파일 다운로드 중... ({selected_mp4_option})"):
+                    response = requests.get(download_url, stream=True)
+                    response.raise_for_status() # HTTP 오류 발생 시 예외 발생
+                    with open(temp_file_path, "wb") as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                
+                st.video(temp_file_path, format='video/mp4')
+                
+                # 재생 후 임시 파일 삭제 (선택 사항, 필요에 따라 유지 가능)
+                # os.remove(temp_file_path)
+            else:
+                st.error("유효한 MP4 파일 링크가 아닙니다.")
+        except requests.exceptions.RequestException as e:
+            st.error(f"MP4 파일 다운로드 중 오류 발생: {e}")
+        except Exception as e:
+            st.error(f"MP4 파일 재생 중 오류 발생: {e}")
+
+# 메인 함수
 def main():
-    """메인 애플리케이션"""
-    # 앱 초기화
+    # 이스터에그 상태 초기화
+    if "easter_egg_mp3" not in st.session_state:
+        st.session_state.easter_egg_mp3 = False
+    if "easter_egg_mp4" not in st.session_state:
+        st.session_state.easter_egg_mp4 = False
+
     app = MissionAlarmApp()
-    
-    # 사이드바 네비게이션
-    st.sidebar.title("🎯 미션 알람")
-    st.sidebar.markdown("---")
-    
-    # 페이지 선택
-    pages = {
-        "📆 월간 일정": "calendar",
-        "⏰ 알람 설정": "alarm", 
-        "❓ 미션 퀴즈": "quiz",
-        "⚙️ 설정": "settings",
-        "📙 스터디" : "study",
-        "▶️ 마감에 쫓길 때" : "deadline_youtube"
+
+    st.sidebar.title("미션 알람")
+    st.sidebar.image("https://i.imgur.com/y3f4g3L.png") # 로고 이미지
+
+    menu = {
+        "📆 월간 일정 관리": show_calendar_page,
+        "⏰ 알람 설정": show_alarm_page,
+        "❓ 미션 퀴즈": show_quiz_page,
+        "⚙️ 설정": show_settings_page,
+        "▶️ YouTube 동영상": show_youtube_page,
+        "▶️ 마감에 쫓길 때": show_deadline_youtube_page
     }
 
-    # 이스터에그 페이지 추가
+    # 이스터에그 메뉴 추가
     if st.session_state.easter_egg_mp3:
-        pages["🎵 MP3 플레이어"] = "mp3_player"
+        menu["🎵 MP3 플레이어"] = show_mp3_player_page
     if st.session_state.easter_egg_mp4:
-        pages["▶️ MP4 플레이어"] = "mp4_player"
-    
-    selected_page = st.sidebar.radio("페이지 선택", list(pages.keys()))
-    page_key = pages[selected_page]
-    
-    # 현재 상태 표시
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📊 현재 상태")
-    
-    today = datetime.date.today()
-    today_schedules = app.get_schedules(today)
-    completed_count = sum(1 for s in today_schedules if s['completed'])
-    total_count = len(today_schedules)
-    
-    st.sidebar.info(f"오늘의 일정: {completed_count}/{total_count} 완료")
-    
-    # 페이지 렌더링
-    if page_key == "calendar":
-        show_calendar_page(app)
-    elif page_key == "alarm":
-        show_alarm_page(app)
-    elif page_key == "quiz":
-        show_quiz_page(app)
-    elif page_key == "settings":
-        show_settings_page(app)
-    elif page_key == "study":
-        if study:
-            study.show_study_page()
-        else:
-            st.warning("study 모듈을 불러올 수 없습니다.")
-    elif page_key == "deadline_youtube":
-        show_deadline_youtube_page()
-    elif page_key == "mp3_player":
-        show_mp3_player_page()
-    elif page_key == "mp4_player":
-        show_mp4_player_page()
+        menu["▶️ MP4 플레이어"] = show_mp4_player_page
+
+    selected_page = st.sidebar.radio("메뉴", list(menu.keys()))
+
+    # 선택된 페이지 표시
+    menu[selected_page](app) if selected_page not in ["▶️ YouTube 동영상", "▶️ 마감에 쫓길 때", "🎵 MP3 플레이어", "▶️ MP4 플레이어"] else menu[selected_page]()
 
 if __name__ == "__main__":
     main()
-
-
-
-
 
 
 
