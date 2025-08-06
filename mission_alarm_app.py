@@ -22,7 +22,7 @@ except ImportError as e:
 
 # 페이지 설정
 st.set_page_config(
-    page_title="미션 알람",
+    page_title="스케쥴러",
     page_icon="⏰",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -713,6 +713,9 @@ def show_study_page():
         study.run_study_planner()
     else:
         st.error("study 모듈을 불러올 수 없습니다. study.py 파일이 올바른 위치에 있는지 확인해주세요.")
+def show_deadline_youtube_page():
+    st.header("▶️ 마감에 쫓길 때")
+    st.video("https://www.youtube.com/watch?v=C3p4QDW3-g8")
 
 def main():
     app = MissionAlarmApp()
@@ -732,17 +735,17 @@ def main():
         st.session_state.easter_egg_bocchitherock = False
 
     # 사이드바 메뉴
-    st.sidebar.title("메뉴")
     pages = {
         "📆 월간 일정 관리": show_calendar_page,
         "⏰ 알람 설정": show_alarm_page,
         "❓ 미션 퀴즈": show_quiz_page,
         "⚙️ 설정": show_settings_page,
+        "▶️ 마감에 쫓길 때" : show_deadline_youtube_page
     }
 
     # study 모듈이 성공적으로 임포트되었을 때만 '스터디' 메뉴 추가
     if study:
-        pages["📚 스터디"] = show_study_page
+        pages["📙 스터디"] = show_study_page
 
     # 이스터에그 메뉴 추가
     if st.session_state.easter_egg_mp3:
@@ -761,13 +764,20 @@ def main():
     selected_page = st.sidebar.radio("페이지 선택", list(pages.keys()))
 
     # 선택된 페이지 렌더링
-    if selected_page in ["🎵 MP3 플레이어", "▶️ MP4 플레이어", "📈 주식 차트", "🎸 ASIAN KUNG-FU GENERATION", "🎵 Kino", "🎸 Bocchi the Rock!"]:
+    if selected_page in [
+        "🎵 MP3 플레이어",
+        "▶️ MP4 플레이어",
+        "📈 주식 차트",
+        "🎸 ASIAN KUNG-FU GENERATION",
+        "🎵 Kino", 
+        "🎸 Bocchi the Rock!"]:
         pages[selected_page]()
-    elif selected_page == "📚 스터디":
+    elif selected_page == "📙 스터디":
         show_study_page()
+    elif selected_page == "▶️ 마감에 쫓길 때":
+        show_deadline_youtube_page()
     else:
         pages[selected_page](app)
-
 if __name__ == "__main__":
     main()
 
