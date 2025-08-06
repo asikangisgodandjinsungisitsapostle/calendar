@@ -692,16 +692,11 @@ def show_stock_chart_page():
 
 
 def get_youtube_playlist_id(url):
-    """유튜브 플레이리스트 URL에서 ID 추출"""
-    import urllib.parse as urlparse
     parsed = urlparse.urlparse(url)
     query = urlparse.parse_qs(parsed.query)
     return query.get("list", [None])[0]
 
 def show_youtube_playlist_page(title, playlist_url):
-    # 페이지 설정은 함수 바깥에서 한 번만 호출해야 합니다
-    # st.set_page_config(layout="wide") ← 앱 시작점에서만 호출
-
     st.header(f"🎸 {title} 플레이리스트")
     st.write(f"{title}의 YouTube 플레이리스트를 재생합니다.")
 
@@ -710,20 +705,19 @@ def show_youtube_playlist_page(title, playlist_url):
     if playlist_id:
         embed_url = f"https://www.youtube.com/embed/videoseries?list={playlist_id}"
 
-        # 반응형 유튜브 임베드 코드
+        # 고정된 16:9 iframe을 중앙에 강제 정렬 + max width 설정
         html_code = f"""
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
-            <iframe 
-                src="{embed_url}" 
-                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+        <div style="display: flex; justify-content: center;">
+            <iframe width="960" height="540"
+                src="{embed_url}"
                 frameborder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowfullscreen>
             </iframe>
         </div>
         """
-        # height는 유튜브 플레이어의 예상 최대 높이로 설정
-        components.html(html_code, height=600)
+
+        components.html(html_code, height=580)
     else:
         st.error("유효한 YouTube 플레이리스트 링크가 아닙니다.")
 
