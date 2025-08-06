@@ -699,6 +699,7 @@ def get_youtube_playlist_id(url):
     return query.get("list", [None])[0]
 
 def show_youtube_playlist_page(title, playlist_url):
+    st.set_page_config(layout="wide")
     st.header(f"🎸 {title} 플레이리스트")
     st.write(f"{title}의 YouTube 플레이리스트를 재생합니다.")
 
@@ -707,22 +708,22 @@ def show_youtube_playlist_page(title, playlist_url):
     if playlist_id:
         embed_url = f"https://www.youtube.com/embed/videoseries?list={playlist_id}"
 
-        # 고정된 16:9 iframe을 중앙에 강제 정렬 + max width 설정
+        # 반응형 YouTube iframe 삽입
         html_code = f"""
-        <div style="display: flex; justify-content: center;">
-            <iframe width="960" height="540"
-                src="{embed_url}"
-                frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen>
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto;">
+            <iframe src="{embed_url}" frameborder="0"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                    allowfullscreen>
             </iframe>
         </div>
         """
 
-        components.html(html_code, height=580)
+        # components에 충분한 높이 주기
+        components.html(html_code, height=600)
     else:
         st.error("유효한 YouTube 플레이리스트 링크가 아닙니다.")
 
+        
 def show_study_page():
     if study:
         study.run_study_planner()
