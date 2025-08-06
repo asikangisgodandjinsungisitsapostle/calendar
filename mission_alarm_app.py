@@ -711,7 +711,7 @@ def show_youtube_playlist_page(title, playlist_url):
         <style>
             .video-container {{
                 position: relative;
-                padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+                padding-bottom: 100%; /* 16:9 Aspect Ratio */
                 height: 100%;
                 overflow: hidden;
                 max-width: 3840px;
