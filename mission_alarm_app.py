@@ -692,6 +692,8 @@ def show_stock_chart_page():
 
 
 def get_youtube_playlist_id(url):
+    """유튜브 플레이리스트 URL에서 ID 추출"""
+    import urllib.parse as urlparse
     parsed = urlparse.urlparse(url)
     query = urlparse.parse_qs(parsed.query)
     return query.get("list", [None])[0]
