@@ -700,7 +700,7 @@ def get_youtube_playlist_id(url):
 def show_youtube_playlist_page(title, playlist_url):
     st.header(f"🎸 {title} 플레이리스트")
     st.write(f"{title}의 YouTube 플레이리스트를 재생합니다.")
-
+    st.set_page_config(layout="wide")
     playlist_id = get_youtube_playlist_id(playlist_url)
 
     if playlist_id:
