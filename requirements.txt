@@ -1,3 +1,6 @@
 DateTime
+streamlit
+pandas
 requests
-
+yfinance
+plotly
