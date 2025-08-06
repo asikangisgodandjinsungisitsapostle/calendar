@@ -1,3 +1,7 @@
 DateTime
+pandas
 requests
+yfinance
+plotly
+
 
