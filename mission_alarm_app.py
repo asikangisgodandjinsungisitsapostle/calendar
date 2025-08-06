@@ -721,7 +721,7 @@ def show_youtube_playlist_page(title, playlist_url):
                 position: absolute;
                 top: 0;
                 left: 0;
-                width: 100%;
+                width: 3840px;
                 height: 100%;
             }}
         </style>
