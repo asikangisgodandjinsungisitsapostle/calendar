@@ -614,21 +614,32 @@ def show_stock_chart_page():
         if stock_input:
             ticker_symbol = ""
             if "google.com/finance/quote/" in stock_input:
-                match = re.search(r'/quote/([^/:]+:[^/?]+)', stock_input)
+                match = re.search(r'/quote/([^/:]+):([^/?]+)', stock_input)
                 if match:
-                    ticker_symbol = match.group(1)
+                    symbol_part = match.group(1)
+                    exchange_part = match.group(2)
+                    if exchange_part == "KRX":
+                        ticker_symbol = f"{symbol_part}.KS"
+                    else:
+                        ticker_symbol = f"{symbol_part}.{exchange_part}" 
                 else:
                     st.error("유효한 Google Finance 링크가 아닙니다.")
                     return
+            elif ":KRX" in stock_input.upper():
+                ticker_symbol = stock_input.replace(":KRX", ".KS").upper()
             else:
-                ticker_symbol = stock_input
+                ticker_symbol = stock_input.upper()
 
             try:
                 stock = yf.Ticker(ticker_symbol)
                 hist = stock.history(period=selected_period_yf)
 
                 if not hist.empty:
-                    st.subheader(f"{ticker_symbol} 주식 차트 ({selected_period_name})")
+                    # 회사 정보 가져오기
+                    info = stock.info
+                    company_name = info.get('longName', info.get('shortName', ticker_symbol))
+                    
+                    st.subheader(f"{company_name} ({ticker_symbol}) 주식 차트 ({selected_period_name})")
 
                     fig = go.Figure(data=[
                         go.Candlestick(
@@ -639,20 +650,37 @@ def show_stock_chart_page():
                             close=hist['Close']
                         )
                     ])
-                    fig.update_layout(xaxis_rangeslider_visible=False)
+                    fig.update_layout(
+                        title=f"{company_name} ({ticker_symbol}) - {selected_period_name}",
+                        xaxis_rangeslider_visible=False
+                    )
                     st.plotly_chart(fig, use_container_width=True)
 
-                    info = stock.info
                     st.subheader("주요 정보")
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.write(f"**현재가:** {info.get('currentPrice', 'N/A')}")
-                        st.write(f"**시가총액:** {info.get('marketCap', 'N/A')}")
-                        st.write(f"**PER:** {info.get('trailingPE', 'N/A')}")
+                        current_price = info.get('currentPrice', info.get('regularMarketPrice', 'N/A'))
+                        st.write(f"**현재가:** {current_price}")
+                        market_cap = info.get('marketCap', 'N/A')
+                        if market_cap != 'N/A' and isinstance(market_cap, (int, float)):
+                            market_cap = f"{market_cap:,.0f}"
+                        st.write(f"**시가총액:** {market_cap}")
+                        pe_ratio = info.get('trailingPE', 'N/A')
+                        if pe_ratio != 'N/A' and isinstance(pe_ratio, (int, float)):
+                            pe_ratio = f"{pe_ratio:.2f}"
+                        st.write(f"**PER:** {pe_ratio}")
                     with col2:
-                        st.write(f"**변동률 (1일):** {info.get('regularMarketChangePercent', 'N/A'):.2f}%")
-                        st.write(f"**거래량:** {info.get('volume', 'N/A')}")
-                        st.write(f"**52주 최고/최저:** {info.get('fiftyTwoWeekHigh', 'N/A')} / {info.get('fiftyTwoWeekLow', 'N/A')}")
+                        change_percent = info.get('regularMarketChangePercent', 'N/A')
+                        if change_percent != 'N/A' and isinstance(change_percent, (int, float)):
+                            change_percent = f"{change_percent:.2f}%"
+                        st.write(f"**변동률 (1일):** {change_percent}")
+                        volume = info.get('volume', info.get('regularMarketVolume', 'N/A'))
+                        if volume != 'N/A' and isinstance(volume, (int, float)):
+                            volume = f"{volume:,.0f}"
+                        st.write(f"**거래량:** {volume}")
+                        high_52 = info.get('fiftyTwoWeekHigh', 'N/A')
+                        low_52 = info.get('fiftyTwoWeekLow', 'N/A')
+                        st.write(f"**52주 최고/최저:** {high_52} / {low_52}")
 
                 else:
                     st.warning(f"{ticker_symbol}에 대한 데이터를 찾을 수 없습니다. 종목 코드를 확인해주세요.")
@@ -660,6 +688,8 @@ def show_stock_chart_page():
                 st.error(f"주식 정보를 가져오는 중 오류 발생: {e}")
         else:
             st.warning("종목 코드를 입력해주세요.")
+
+
 
 def get_youtube_playlist_id(url):
     match = re.search(r'[?&]list=([^&]+)', url)
@@ -719,6 +749,10 @@ def show_deadline_youtube_page():
 
 def main():
     app = MissionAlarmApp()
+    st.sidebar.title("🎯 스케쥴러")
+    st.sidebar.markdown("---")
+
+    
 
     # 이스터에그 상태 초기화 (앱이 로드될 때마다)
     if 'easter_egg_mp3' not in st.session_state:
@@ -778,6 +812,12 @@ def main():
         show_deadline_youtube_page()
     else:
         pages[selected_page](app)
+
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 제작자 정보")
+    st.sidebar.markdown("[###instagram](https://www.instagram.com/adenosine_triphosphates/)")
+
 if __name__ == "__main__":
     main()
 
