@@ -712,7 +712,7 @@ def show_youtube_playlist_page(title, playlist_url):
             .video-container {{
                 position: relative;
                 padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-                height: 0;
+                height: 100%;
                 overflow: hidden;
                 max-width: 100%;
                 background: #000;
@@ -734,9 +734,10 @@ def show_youtube_playlist_page(title, playlist_url):
             ></iframe>
         </div>
         """
-        components.html(html_code, height=400, scrolling=False) # height는 초기 로딩 시 필요
+        components.html(html_code, height=4000) # height는 iframe의 실제 높이가 아니라 components.html이 차지할 공간
     else:
         st.error("유효한 YouTube 플레이리스트 링크가 아닙니다.")
+
 
 def show_study_page():
     if study:
