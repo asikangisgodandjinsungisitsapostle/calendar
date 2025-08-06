@@ -461,7 +461,6 @@ def get_gdrive_direct_link(gdrive_url):
     file_id_match = re.search(r'/d/([a-zA-Z0-9_-]+)', gdrive_url)
     if file_id_match:
         file_id = file_id_match.group(1)
-        # return f"https://drive.google.com/uc?export=download&id={file_id}" # 이전 다운로드 방식
         return f"https://drive.google.com/uc?id={file_id}&export=download" # 스트리밍에 더 적합한 방식
     return None
 
@@ -505,7 +504,6 @@ def show_mp3_player_page():
     ]
 
     if mp3_links:
-        # 파일 ID를 기반으로 드롭다운 옵션 생성
         mp3_options = []
         for link in mp3_links:
             file_id_match = re.search(r'/d/([a-zA-Z0-9_-]+)', link)
@@ -522,16 +520,14 @@ def show_mp3_player_page():
         
         if direct_link:
             try:
-                # 파일을 임시로 다운로드하여 재생
                 response = requests.get(direct_link, stream=True)
                 if response.status_code == 200:
-                    # 임시 파일로 저장
                     temp_audio_file = "temp_audio.mp3"
                     with open(temp_audio_file, "wb") as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             f.write(chunk)
                     st.audio(temp_audio_file, format='audio/mp3')
-                    os.remove(temp_audio_file) # 재생 후 임시 파일 삭제
+                    os.remove(temp_audio_file)
                 else:
                     st.error(f"MP3 파일을 가져올 수 없습니다. 상태 코드: {response.status_code}")
             except Exception as e:
@@ -562,7 +558,6 @@ def show_mp4_player_page():
     ]
 
     if mp4_links:
-        # 파일 ID를 기반으로 드롭다운 옵션 생성
         mp4_options = []
         for link in mp4_links:
             file_id_match = re.search(r'/d/([a-zA-Z0-9_-]+)', link)
@@ -579,16 +574,14 @@ def show_mp4_player_page():
 
         if direct_link:
             try:
-                # 파일을 임시로 다운로드하여 재생
                 response = requests.get(direct_link, stream=True)
                 if response.status_code == 200:
-                    # 임시 파일로 저장
                     temp_video_file = "temp_video.mp4"
                     with open(temp_video_file, "wb") as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             f.write(chunk)
                     st.video(temp_video_file, format='video/mp4')
-                    os.remove(temp_video_file) # 재생 후 임시 파일 삭제
+                    os.remove(temp_video_file)
                 else:
                     st.error(f"MP4 파일을 가져올 수 없습니다. 상태 코드: {response.status_code}")
             except Exception as e:
@@ -604,7 +597,6 @@ def show_stock_chart_page():
 
     stock_input = st.text_input("종목 코드 (예: 000660:KRX, AAPL) 또는 Google Finance 링크", key="stock_input")
     
-    # 기간 선택 옵션
     periods = {
         "1일": "1d",
         "5일": "5d",
@@ -622,7 +614,6 @@ def show_stock_chart_page():
         if stock_input:
             ticker_symbol = ""
             if "google.com/finance/quote/" in stock_input:
-                # Google Finance 링크에서 종목 코드 추출
                 match = re.search(r'/quote/([^/:]+:[^/?]+)', stock_input)
                 if match:
                     ticker_symbol = match.group(1)
@@ -633,14 +624,12 @@ def show_stock_chart_page():
                 ticker_symbol = stock_input
 
             try:
-                # yfinance를 사용하여 데이터 가져오기
                 stock = yf.Ticker(ticker_symbol)
                 hist = stock.history(period=selected_period_yf)
 
                 if not hist.empty:
                     st.subheader(f"{ticker_symbol} 주식 차트 ({selected_period_name})")
 
-                    # 캔들스틱 차트 생성
                     fig = go.Figure(data=[
                         go.Candlestick(
                             x=hist.index,
@@ -653,7 +642,6 @@ def show_stock_chart_page():
                     fig.update_layout(xaxis_rangeslider_visible=False)
                     st.plotly_chart(fig, use_container_width=True)
 
-                    # 현재 정보 표시
                     info = stock.info
                     st.subheader("주요 정보")
                     col1, col2 = st.columns(2)
@@ -694,7 +682,7 @@ def show_youtube_playlist_page(title, playlist_url):
             .video-container {{
                 position: relative;
                 padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-                height: 100;
+                height: 0;
                 overflow: hidden;
                 max-width: 100%;
                 background: #000;
@@ -719,6 +707,12 @@ def show_youtube_playlist_page(title, playlist_url):
         components.html(html_code, height=400, scrolling=False) # height는 초기 로딩 시 필요
     else:
         st.error("유효한 YouTube 플레이리스트 링크가 아닙니다.")
+
+def show_study_page():
+    if study:
+        study.run_study_planner()
+    else:
+        st.error("study 모듈을 불러올 수 없습니다. study.py 파일이 올바른 위치에 있는지 확인해주세요.")
 
 def main():
     app = MissionAlarmApp()
@@ -746,6 +740,10 @@ def main():
         "⚙️ 설정": show_settings_page,
     }
 
+    # study 모듈이 성공적으로 임포트되었을 때만 '스터디' 메뉴 추가
+    if study:
+        pages["📚 스터디"] = show_study_page
+
     # 이스터에그 메뉴 추가
     if st.session_state.easter_egg_mp3:
         pages["🎵 MP3 플레이어"] = show_mp3_player_page
@@ -763,9 +761,16 @@ def main():
     selected_page = st.sidebar.radio("페이지 선택", list(pages.keys()))
 
     # 선택된 페이지 렌더링
-    pages[selected_page](app) if selected_page not in ["🎵 MP3 플레이어", "▶️ MP4 플레이어", "📈 주식 차트", "🎸 ASIAN KUNG-FU GENERATION", "🎵 Kino", "🎸 Bocchi the Rock!"] else pages[selected_page]()
+    if selected_page in ["🎵 MP3 플레이어", "▶️ MP4 플레이어", "📈 주식 차트", "🎸 ASIAN KUNG-FU GENERATION", "🎵 Kino", "🎸 Bocchi the Rock!"]:
+        pages[selected_page]()
+    elif selected_page == "📚 스터디":
+        show_study_page()
+    else:
+        pages[selected_page](app)
 
 if __name__ == "__main__":
     main()
+
+
 
 
