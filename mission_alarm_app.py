@@ -8,7 +8,10 @@ import time
 import os
 import re
 import requests
+import yfinance as yf
+import plotly.graph_objects as go
 from typing import Dict, List, Any
+import streamlit.components.v1 as components
 
 # study 모듈 임포트 (기존 코드 유지)
 try:
@@ -95,6 +98,14 @@ class MissionAlarmApp:
             st.session_state.easter_egg_mp3 = True
         if "mp4" in task.lower():
             st.session_state.easter_egg_mp4 = True
+        if "stock" in task.lower():
+            st.session_state.easter_egg_stock = True
+        if "asiankungfugeneration" in task.lower():
+            st.session_state.easter_egg_asiankungfugeneration = True
+        if "kino" in task.lower():
+            st.session_state.easter_egg_kino = True
+        if "bocchitherock" in task.lower():
+            st.session_state.easter_egg_bocchitherock = True
 
     def get_schedules(self, date):
         """특정 날짜의 일정 조회"""
@@ -446,42 +457,18 @@ def show_settings_page(app):
             except Exception as e:
                 st.error(f"파일 읽기 오류: {e}")
 
-def show_youtube_page():
-    st.header("▶️ YouTube 동영상")
-    st.write("여기에 YouTube 동영상을 삽입할 수 있습니다.")
-
-    youtube_url = st.text_input("YouTube 동영상 URL을 입력하세요:", key="youtube_url_input")
-
-    if youtube_url:
-        video_id_match = re.search(r"(?:v=|youtu\.be/|embed/|watch\?v=)([a-zA-Z0-9_-]{11})", youtube_url)
-        if video_id_match:
-            video_id = video_id_match.group(1)
-            st.video(f"https://www.youtube.com/watch?v={video_id}")
-        else:
-            st.error("유효한 YouTube 동영상 URL이 아닙니다.")
-
-def show_deadline_youtube_page():
-    st.header("▶️ 마감에 쫓길 때")
-    st.video("https://www.youtube.com/watch?v=C3p4QDW3-g8")
-
-# Google Drive 공유 링크를 직접 다운로드/스트리밍 가능한 링크로 변환하는 함수
-def get_gdrive_direct_link(google_drive_share_link):
-    # Google Drive 공유 링크에서 파일 ID 추출
-    file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", google_drive_share_link)
+def get_gdrive_direct_link(gdrive_url):
+    file_id_match = re.search(r'/d/([a-zA-Z0-9_-]+)', gdrive_url)
     if file_id_match:
         file_id = file_id_match.group(1)
-        # 직접 스트리밍 링크 형식으로 변환 (alt=media 파라미터 사용)
-        return f"https://drive.google.com/uc?export=view&id={file_id}&alt=media"
-    
-    # 폴더 링크인 경우, 파일 ID를 찾을 수 없으므로 None 반환
+        # return f"https://drive.google.com/uc?export=download&id={file_id}" # 이전 다운로드 방식
+        return f"https://drive.google.com/uc?id={file_id}&export=download" # 스트리밍에 더 적합한 방식
     return None
 
-# MP3 플레이어 페이지
 def show_mp3_player_page():
     st.header("🎵 MP3 플레이어")
     st.write("구글 드라이브 MP3 폴더의 파일을 재생합니다.")
 
-    # 사용자 제공 MP3 링크 목록
     mp3_links = [
         "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
         "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
@@ -517,57 +504,47 @@ def show_mp3_player_page():
         "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing"
     ]
 
-    # 파일 ID와 파일명 매핑
-    mp3_options = []
-    for link in mp3_links:
-        file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", link)
-        if file_id_match:
-            file_id = file_id_match.group(1)
-            mp3_options.append(f"MP3 파일 {len(mp3_options) + 1} ({file_id[:5]}...)")
-        else:
-            mp3_options.append(f"MP3 파일 {len(mp3_options) + 1} (유효하지 않은 링크)")
-
-    selected_mp3_option = st.selectbox("재생할 MP3 선택", mp3_options)
-
-    if selected_mp3_option:
-        selected_index = mp3_options.index(selected_mp3_option)
-        selected_mp3_link = mp3_links[selected_index]
-        
-        # 임시 파일로 다운로드 후 재생
-        try:
-            file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", selected_mp3_link)
+    if mp3_links:
+        # 파일 ID를 기반으로 드롭다운 옵션 생성
+        mp3_options = []
+        for link in mp3_links:
+            file_id_match = re.search(r'/d/([a-zA-Z0-9_-]+)', link)
             if file_id_match:
                 file_id = file_id_match.group(1)
-                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-                
-                # 임시 파일 경로 설정
-                temp_file_path = f"./temp_mp3_{file_id}.mp3"
-                
-                # 파일 다운로드
-                with st.spinner(f"MP3 파일 다운로드 중... ({selected_mp3_option})"):
-                    response = requests.get(download_url, stream=True)
-                    response.raise_for_status() # HTTP 오류 발생 시 예외 발생
-                    with open(temp_file_path, "wb") as f:
+                mp3_options.append(f"MP3 파일 ({file_id[:5]}...)")
+            else:
+                mp3_options.append("유효하지 않은 링크")
+
+        selected_mp3_index = st.selectbox("재생할 MP3 선택", range(len(mp3_options)), format_func=lambda x: mp3_options[x])
+        selected_mp3_url = mp3_links[selected_mp3_index]
+        
+        direct_link = get_gdrive_direct_link(selected_mp3_url)
+        
+        if direct_link:
+            try:
+                # 파일을 임시로 다운로드하여 재생
+                response = requests.get(direct_link, stream=True)
+                if response.status_code == 200:
+                    # 임시 파일로 저장
+                    temp_audio_file = "temp_audio.mp3"
+                    with open(temp_audio_file, "wb") as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             f.write(chunk)
-                
-                st.audio(temp_file_path, format='audio/mp3')
-                
-                # 재생 후 임시 파일 삭제 (선택 사항, 필요에 따라 유지 가능)
-                # os.remove(temp_file_path)
-            else:
-                st.error("유효한 MP3 파일 링크가 아닙니다.")
-        except requests.exceptions.RequestException as e:
-            st.error(f"MP3 파일 다운로드 중 오류 발생: {e}")
-        except Exception as e:
-            st.error(f"MP3 파일 재생 중 오류 발생: {e}")
+                    st.audio(temp_audio_file, format='audio/mp3')
+                    os.remove(temp_audio_file) # 재생 후 임시 파일 삭제
+                else:
+                    st.error(f"MP3 파일을 가져올 수 없습니다. 상태 코드: {response.status_code}")
+            except Exception as e:
+                st.error(f"MP3 재생 중 오류 발생: {e}")
+        else:
+            st.error("유효한 MP3 링크를 찾을 수 없습니다.")
+    else:
+        st.info("등록된 MP3 파일이 없습니다.")
 
-# MP4 플레이어 페이지
 def show_mp4_player_page():
     st.header("▶️ MP4 플레이어")
     st.write("구글 드라이브 MP4 폴더의 파일을 재생합니다.")
 
-    # 사용자 제공 MP4 링크 목록
     mp4_links = [
         "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
         "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing",
@@ -584,86 +561,211 @@ def show_mp4_player_page():
         "https://drive.google.com/file/d/1OCudWUdyzNNxQVu6R1HH4M1wc-3uDvSM/view?usp=sharing"
     ]
 
-    # 파일 ID와 파일명 매핑
-    mp4_options = []
-    for link in mp4_links:
-        file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", link)
-        if file_id_match:
-            file_id = file_id_match.group(1)
-            mp4_options.append(f"MP4 파일 {len(mp4_options) + 1} ({file_id[:5]}...)")
-        else:
-            mp4_options.append(f"MP4 파일 {len(mp4_options) + 1} (유효하지 않은 링크)")
-
-    selected_mp4_option = st.selectbox("재생할 MP4 선택", mp4_options)
-
-    if selected_mp4_option:
-        selected_index = mp4_options.index(selected_mp4_option)
-        selected_mp4_link = mp4_links[selected_index]
-
-        # 임시 파일로 다운로드 후 재생
-        try:
-            file_id_match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", selected_mp4_link)
+    if mp4_links:
+        # 파일 ID를 기반으로 드롭다운 옵션 생성
+        mp4_options = []
+        for link in mp4_links:
+            file_id_match = re.search(r'/d/([a-zA-Z0-9_-]+)', link)
             if file_id_match:
                 file_id = file_id_match.group(1)
-                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-                
-                # 임시 파일 경로 설정
-                temp_file_path = f"./temp_mp4_{file_id}.mp4"
-                
-                # 파일 다운로드
-                with st.spinner(f"MP4 파일 다운로드 중... ({selected_mp4_option})"):
-                    response = requests.get(download_url, stream=True)
-                    response.raise_for_status() # HTTP 오류 발생 시 예외 발생
-                    with open(temp_file_path, "wb") as f:
+                mp4_options.append(f"MP4 파일 ({file_id[:5]}...)")
+            else:
+                mp4_options.append("유효하지 않은 링크")
+
+        selected_mp4_index = st.selectbox("재생할 MP4 선택", range(len(mp4_options)), format_func=lambda x: mp4_options[x])
+        selected_mp4_url = mp4_links[selected_mp4_index]
+
+        direct_link = get_gdrive_direct_link(selected_mp4_url)
+
+        if direct_link:
+            try:
+                # 파일을 임시로 다운로드하여 재생
+                response = requests.get(direct_link, stream=True)
+                if response.status_code == 200:
+                    # 임시 파일로 저장
+                    temp_video_file = "temp_video.mp4"
+                    with open(temp_video_file, "wb") as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             f.write(chunk)
-                
-                st.video(temp_file_path, format='video/mp4')
-                
-                # 재생 후 임시 파일 삭제 (선택 사항, 필요에 따라 유지 가능)
-                # os.remove(temp_file_path)
+                    st.video(temp_video_file, format='video/mp4')
+                    os.remove(temp_video_file) # 재생 후 임시 파일 삭제
+                else:
+                    st.error(f"MP4 파일을 가져올 수 없습니다. 상태 코드: {response.status_code}")
+            except Exception as e:
+                st.error(f"MP4 재생 중 오류 발생: {e}")
+        else:
+            st.error("유효한 MP4 링크를 찾을 수 없습니다.")
+    else:
+        st.info("등록된 MP4 파일이 없습니다.")
+
+def show_stock_chart_page():
+    st.header("📈 주식 차트")
+    st.write("KRX 종목 코드 또는 Google Finance 링크를 입력하여 주식 차트를 조회합니다.")
+
+    stock_input = st.text_input("종목 코드 (예: 000660:KRX, AAPL) 또는 Google Finance 링크", key="stock_input")
+    
+    # 기간 선택 옵션
+    periods = {
+        "1일": "1d",
+        "5일": "5d",
+        "1개월": "1mo",
+        "6개월": "6mo",
+        "YTD": "ytd",
+        "1년": "1y",
+        "5년": "5y",
+        "최대": "max"
+    }
+    selected_period_name = st.selectbox("조회 기간", list(periods.keys()))
+    selected_period_yf = periods[selected_period_name]
+
+    if st.button("차트 조회"):
+        if stock_input:
+            ticker_symbol = ""
+            if "google.com/finance/quote/" in stock_input:
+                # Google Finance 링크에서 종목 코드 추출
+                match = re.search(r'/quote/([^/:]+:[^/?]+)', stock_input)
+                if match:
+                    ticker_symbol = match.group(1)
+                else:
+                    st.error("유효한 Google Finance 링크가 아닙니다.")
+                    return
             else:
-                st.error("유효한 MP4 파일 링크가 아닙니다.")
-        except requests.exceptions.RequestException as e:
-            st.error(f"MP4 파일 다운로드 중 오류 발생: {e}")
-        except Exception as e:
-            st.error(f"MP4 파일 재생 중 오류 발생: {e}")
+                ticker_symbol = stock_input
 
-# 메인 함수
+            try:
+                # yfinance를 사용하여 데이터 가져오기
+                stock = yf.Ticker(ticker_symbol)
+                hist = stock.history(period=selected_period_yf)
+
+                if not hist.empty:
+                    st.subheader(f"{ticker_symbol} 주식 차트 ({selected_period_name})")
+
+                    # 캔들스틱 차트 생성
+                    fig = go.Figure(data=[
+                        go.Candlestick(
+                            x=hist.index,
+                            open=hist['Open'],
+                            high=hist['High'],
+                            low=hist['Low'],
+                            close=hist['Close']
+                        )
+                    ])
+                    fig.update_layout(xaxis_rangeslider_visible=False)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # 현재 정보 표시
+                    info = stock.info
+                    st.subheader("주요 정보")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**현재가:** {info.get('currentPrice', 'N/A')}")
+                        st.write(f"**시가총액:** {info.get('marketCap', 'N/A')}")
+                        st.write(f"**PER:** {info.get('trailingPE', 'N/A')}")
+                    with col2:
+                        st.write(f"**변동률 (1일):** {info.get('regularMarketChangePercent', 'N/A'):.2f}%")
+                        st.write(f"**거래량:** {info.get('volume', 'N/A')}")
+                        st.write(f"**52주 최고/최저:** {info.get('fiftyTwoWeekHigh', 'N/A')} / {info.get('fiftyTwoWeekLow', 'N/A')}")
+
+                else:
+                    st.warning(f"{ticker_symbol}에 대한 데이터를 찾을 수 없습니다. 종목 코드를 확인해주세요.")
+            except Exception as e:
+                st.error(f"주식 정보를 가져오는 중 오류 발생: {e}")
+        else:
+            st.warning("종목 코드를 입력해주세요.")
+
+def get_youtube_playlist_id(url):
+    match = re.search(r'[?&]list=([^&]+)', url)
+    if match:
+        return match.group(1)
+    return None
+
+def show_youtube_playlist_page(title, playlist_url):
+    st.header(f"🎸 {title} 플레이리스트")
+    st.write(f"{title}의 YouTube 플레이리스트를 재생합니다.")
+
+    playlist_id = get_youtube_playlist_id(playlist_url)
+
+    if playlist_id:
+        embed_url = f"https://www.youtube.com/embed/videoseries?list={playlist_id}"
+        
+        # CSS를 사용하여 반응형 비디오 컨테이너 생성
+        html_code = f"""
+        <style>
+            .video-container {{
+                position: relative;
+                padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+                height: 100;
+                overflow: hidden;
+                max-width: 100%;
+                background: #000;
+            }}
+            .video-container iframe {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }}
+        </style>
+        <div class="video-container">
+            <iframe
+                src="{embed_url}"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+            ></iframe>
+        </div>
+        """
+        components.html(html_code, height=400, scrolling=False) # height는 초기 로딩 시 필요
+    else:
+        st.error("유효한 YouTube 플레이리스트 링크가 아닙니다.")
+
 def main():
-    # 이스터에그 상태 초기화
-    if "easter_egg_mp3" not in st.session_state:
-        st.session_state.easter_egg_mp3 = False
-    if "easter_egg_mp4" not in st.session_state:
-        st.session_state.easter_egg_mp4 = False
-
     app = MissionAlarmApp()
 
-    st.sidebar.title("미션 알람")
-    st.sidebar.image("https://i.imgur.com/y3f4g3L.png") # 로고 이미지
+    # 이스터에그 상태 초기화 (앱이 로드될 때마다)
+    if 'easter_egg_mp3' not in st.session_state:
+        st.session_state.easter_egg_mp3 = False
+    if 'easter_egg_mp4' not in st.session_state:
+        st.session_state.easter_egg_mp4 = False
+    if 'easter_egg_stock' not in st.session_state:
+        st.session_state.easter_egg_stock = False
+    if 'easter_egg_asiankungfugeneration' not in st.session_state:
+        st.session_state.easter_egg_asiankungfugeneration = False
+    if 'easter_egg_kino' not in st.session_state:
+        st.session_state.easter_egg_kino = False
+    if 'easter_egg_bocchitherock' not in st.session_state:
+        st.session_state.easter_egg_bocchitherock = False
 
-    menu = {
+    # 사이드바 메뉴
+    st.sidebar.title("메뉴")
+    pages = {
         "📆 월간 일정 관리": show_calendar_page,
         "⏰ 알람 설정": show_alarm_page,
         "❓ 미션 퀴즈": show_quiz_page,
         "⚙️ 설정": show_settings_page,
-        "▶️ YouTube 동영상": show_youtube_page,
-        "▶️ 마감에 쫓길 때": show_deadline_youtube_page
     }
 
     # 이스터에그 메뉴 추가
     if st.session_state.easter_egg_mp3:
-        menu["🎵 MP3 플레이어"] = show_mp3_player_page
+        pages["🎵 MP3 플레이어"] = show_mp3_player_page
     if st.session_state.easter_egg_mp4:
-        menu["▶️ MP4 플레이어"] = show_mp4_player_page
+        pages["▶️ MP4 플레이어"] = show_mp4_player_page
+    if st.session_state.easter_egg_stock:
+        pages["📈 주식 차트"] = show_stock_chart_page
+    if st.session_state.easter_egg_asiankungfugeneration:
+        pages["🎸 ASIAN KUNG-FU GENERATION"] = lambda: show_youtube_playlist_page("ASIAN KUNG-FU GENERATION", "https://www.youtube.com/watch?v=-UC-77f6z9A&list=PLo661GiwfpLtFKbyzWqbURwVJlyGkNMjR")
+    if st.session_state.easter_egg_kino:
+        pages["🎵 Kino"] = lambda: show_youtube_playlist_page("Kino", "https://www.youtube.com/watch?v=06N4m8iH_DY&list=PL1wBAksWomErk77CKALQTrgaSE5foHeYi&index=1")
+    if st.session_state.easter_egg_bocchitherock:
+        pages["🎸 Bocchi the Rock!"] = lambda: show_youtube_playlist_page("Bocchi the Rock!", "https://www.youtube.com/watch?v=SDk1RA4g8CA&list=PLEAVhzkMlRMFB3lvPiaabqY9KbkRi0rLQ")
 
-    selected_page = st.sidebar.radio("메뉴", list(menu.keys()))
+    selected_page = st.sidebar.radio("페이지 선택", list(pages.keys()))
 
-    # 선택된 페이지 표시
-    menu[selected_page](app) if selected_page not in ["▶️ YouTube 동영상", "▶️ 마감에 쫓길 때", "🎵 MP3 플레이어", "▶️ MP4 플레이어"] else menu[selected_page]()
+    # 선택된 페이지 렌더링
+    pages[selected_page](app) if selected_page not in ["🎵 MP3 플레이어", "▶️ MP4 플레이어", "📈 주식 차트", "🎸 ASIAN KUNG-FU GENERATION", "🎵 Kino", "🎸 Bocchi the Rock!"] else pages[selected_page]()
 
 if __name__ == "__main__":
     main()
-
 
 
