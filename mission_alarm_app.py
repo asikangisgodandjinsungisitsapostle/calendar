@@ -12,6 +12,7 @@ import yfinance as yf
 import plotly.graph_objects as go
 import pandas as pd
 from typing import Dict, List, Any
+# from streamlit_player import st_player  # 주석 처리
 
 import streamlit.components.v1 as components
 
@@ -88,28 +89,41 @@ class MissionAlarmApp:
         date_key = self.get_date_key(date)
         if date_key not in st.session_state.schedules:
             st.session_state.schedules[date_key] = []
-        st.session_state.schedules[date_key].append({
-            'task': task,
-            'completed': False,
-            'created_at': datetime.datetime.now().isoformat()
-        })
-        self.save_data()
         
-        # 이스터에그 트리거
+        # 이스터에그 키워드 체크 (일정 추가하지 않음)
+        easter_egg_keywords = [
+            "mp3", "mp4", "stock", "bocchitherock", "youtube", 
+            "이루마", "유키 구라모토", "류이치 사카모토"
+        ]
+        
+        is_easter_egg = any(keyword in task.lower() for keyword in easter_egg_keywords)
+        
+        if not is_easter_egg:
+            # 이스터에그가 아닌 경우에만 일정에 추가
+            st.session_state.schedules[date_key].append({
+                'task': task,
+                'completed': False,
+                'created_at': datetime.datetime.now().isoformat()
+            })
+            self.save_data()
+        
+        # 이스터에그 트리거 (일정 추가 여부와 관계없이)
         if "mp3" in task.lower():
             st.session_state.easter_egg_mp3 = True
         if "mp4" in task.lower():
             st.session_state.easter_egg_mp4 = True
         if "stock" in task.lower():
             st.session_state.easter_egg_stock = True
-        if "asiankungfugeneration" in task.lower():
-            st.session_state.easter_egg_asiankungfugeneration = True
-        if "kino" in task.lower():
-            st.session_state.easter_egg_kino = True
         if "bocchitherock" in task.lower():
             st.session_state.easter_egg_bocchitherock = True
         if "youtube" in task.lower():
             st.session_state.easter_egg_youtube = True
+        if "이루마" in task.lower():
+            st.session_state.easter_egg_yiruma = True
+        if "유키 구라모토" in task.lower():
+            st.session_state.easter_egg_yukikuramoto = True
+        if "류이치 사카모토" in task.lower():
+            st.session_state.easter_egg_ryuichisakamoto = True
 
     def get_schedules(self, date):
         """특정 날짜의 일정 조회"""
@@ -965,10 +979,10 @@ def search_youtube(query, max_results=50):
         st.error(f"YouTube 검색 중 오류 발생: {e}")
         return []
 
-# 🖥️ Streamlit 앱 UI (동적 로딩 추가)
+# 🖥️ Streamlit 앱 UI (iframe 사용)
 def show_youtube_search_page():
     st.header("▶️ YouTube 검색")
-    st.write("YouTube에서 영상을 검색하고 클릭하면 재생됩니다.")
+    st.write("YouTube에서 영상을 검색하고 앱에서 직접 재생할 수 있습니다.")
 
     query = st.text_input("검색어를 입력하세요:", key="youtube_search_query")
 
@@ -980,6 +994,8 @@ def show_youtube_search_page():
             st.session_state.youtube_current_page = 0
         if 'youtube_loading' not in st.session_state:
             st.session_state.youtube_loading = False
+        if 'playing_video' not in st.session_state:
+            st.session_state.playing_video = None
 
         # 검색 버튼
         col1, col2 = st.columns([1, 4])
@@ -993,6 +1009,25 @@ def show_youtube_search_page():
         # 결과가 있으면 표시
         if st.session_state.youtube_results:
             st.success(f"{len(st.session_state.youtube_results)}개의 영상이 검색되었습니다.")
+            
+            # 현재 재생 중인 영상이 있으면 표시
+            if st.session_state.playing_video:
+                st.markdown("### 🎬 현재 재생 중")
+                
+                # YouTube embed URL로 변환
+                video_id = st.session_state.playing_video.split('v=')[-1]
+                embed_url = f"https://www.youtube.com/embed/{video_id}"
+                
+                # iframe으로 YouTube 영상 표시
+                st.markdown(f"""
+                <iframe width="100%" height="400" src="{embed_url}" 
+                        frameborder="0" allowfullscreen></iframe>
+                """, unsafe_allow_html=True)
+                
+                if st.button("❌ 재생 중지"):
+                    st.session_state.playing_video = None
+                    st.rerun()
+                st.markdown("---")
             
             # 페이지당 21개씩 표시
             items_per_page = 21
@@ -1016,12 +1051,21 @@ def show_youtube_search_page():
                         # 썸네일과 제목을 카드 형태로 표시
                         st.markdown(f"""
                         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin: 5px;">
-                            <a href="{video['link']}" target="_blank" style="text-decoration: none; color: inherit;">
-                                <img src="{video['thumbnail']}" width="100%" style="border-radius: 4px;">
-                                <p style="margin-top: 8px; font-weight: bold; font-size: 14px;">{video['title']}</p>
-                            </a>
+                            <img src="{video['thumbnail']}" width="100%" style="border-radius: 4px;">
+                            <p style="margin-top: 8px; font-weight: bold; font-size: 14px;">{video['title']}</p>
                         </div>
                         """, unsafe_allow_html=True)
+                        
+                        # 재생 버튼과 YouTube 링크
+                        col_play, col_link = st.columns([1, 1])
+                        
+                        with col_play:
+                            if st.button(f"▶️ 재생", key=f"play_{video['id']}"):
+                                st.session_state.playing_video = video['link']
+                                st.rerun()
+                        
+                        with col_link:
+                            st.markdown(f"[YouTube에서 보기]({video['link']})")
                         
                     except Exception as e:
                         st.error(f"비디오 표시 중 오류: {e}")
@@ -1084,20 +1128,26 @@ def main():
     st.sidebar.markdown("---")
 
     # 이스터에그 상태 초기화 (앱이 로드될 때마다)
-    if 'easter_egg_mp3' not in st.session_state:
+    if "easter_egg_mp3" not in st.session_state:
         st.session_state.easter_egg_mp3 = False
-    if 'easter_egg_mp4' not in st.session_state:
+    if "easter_egg_mp4" not in st.session_state:
         st.session_state.easter_egg_mp4 = False
-    if 'easter_egg_stock' not in st.session_state:
+    if "easter_egg_stock" not in st.session_state:
         st.session_state.easter_egg_stock = False
-    if 'easter_egg_asiankungfugeneration' not in st.session_state:
+    if "easter_egg_asiankungfugeneration" not in st.session_state:
         st.session_state.easter_egg_asiankungfugeneration = False
-    if 'easter_egg_kino' not in st.session_state:
+    if "easter_egg_kino" not in st.session_state:
         st.session_state.easter_egg_kino = False
-    if 'easter_egg_bocchitherock' not in st.session_state:
+    if "easter_egg_bocchitherock" not in st.session_state:
         st.session_state.easter_egg_bocchitherock = False
-    if 'easter_egg_youtube' not in st.session_state:
+    if "easter_egg_youtube" not in st.session_state:
         st.session_state.easter_egg_youtube = False
+    if "easter_egg_yiruma" not in st.session_state:
+        st.session_state.easter_egg_yiruma = False
+    if "easter_egg_yukikuramoto" not in st.session_state:
+        st.session_state.easter_egg_yukikuramoto = False
+    if "easter_egg_ryuichisakamoto" not in st.session_state:
+        st.session_state.easter_egg_ryuichisakamoto = False
 
     # 사이드바 메뉴
     pages = {
@@ -1128,6 +1178,12 @@ def main():
         pages["🎸 Bocchi the Rock!"] = lambda: show_youtube_playlist_page("Bocchi the Rock!", "https://www.youtube.com/watch?v=SDk1RA4g8CA&list=PLEAVhzkMlRMFB3lvPiaabqY9KbkRi0rLQ")
     if st.session_state.easter_egg_youtube:
         pages["▶️ YouTube 검색"] = show_youtube_search_page
+    if st.session_state.easter_egg_yiruma:
+        pages["🎹 이루마"] = lambda: show_youtube_playlist_page("이루마", "https://www.youtube.com/watch?v=7maJOI3QMu0&list=PLHTh1InhhwT7J5jlmscJeR3aHqP0iYFbG")
+    if st.session_state.easter_egg_yukikuramoto:
+        pages["🎹 유키 구라모토"] = lambda: show_youtube_playlist_page("유키 구라모토", "https://www.youtube.com/watch?v=7maJOI3QMu0&list=PLHTh1InhhwT7J5jlmscJeR3aHqP0iYFbG")
+    if st.session_state.easter_egg_ryuichisakamoto:
+        pages["🎹 류이치 사카모토"] = lambda: show_youtube_playlist_page("류이치 사카모토", "https://www.youtube.com/watch?v=7maJOI3QMu0&list=PLHTh1InhhwT7J5jlmscJeR3aHqP0iYFbG")
         
     selected_page = st.sidebar.radio("페이지 선택", list(pages.keys()))
 
@@ -1139,7 +1195,10 @@ def main():
         "🎸 ASIAN KUNG-FU GENERATION",
         "🎵 Kino", 
         "🎸 Bocchi the Rock!",
-        "▶️ YouTube 검색"]:
+        "▶️ YouTube 검색",
+        "🎹 이루마",
+        "🎹 유키 구라모토",
+        "🎹 류이치 사카모토"]:
         pages[selected_page]()
     elif selected_page == "📙 스터디":
         show_study_page()
