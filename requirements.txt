@@ -1,6 +1,7 @@
-DateTime
 streamlit
 pandas
 requests
 yfinance
 plotly
+beautifulsoup4
+streamlit-embedcode
