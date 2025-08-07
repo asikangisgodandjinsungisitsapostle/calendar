@@ -118,6 +118,8 @@ class MissionAlarmApp:
             st.session_state.easter_egg_bocchitherock = True
         if "asiankungfugeneration" in task.lower():
             st.session_state.easter_egg_asiankungfugeneration = True
+        if "kino" in task.lower():
+            st.session_state.easter_egg_kino = True
         if "youtube" in task.lower():
             st.session_state.easter_egg_youtube = True
         if "이루마" in task.lower():
