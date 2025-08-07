@@ -25,7 +25,7 @@ except ImportError as e:
 
 # 페이지 설정
 st.set_page_config(
-    page_title="스케쥴러",
+    page_title="공부 도우미",
     page_icon="⏰",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -758,7 +758,7 @@ MEAL_API_KEY = "ea52474581cf41c2bf2291ef389adf61"
 
 # 학교 검색 함수
 def search_school(school_name):
-    url = f"https://open.neis.go.kr/hub/schoolInfo?KEY={API_KEY}&Type=json&SCHUL_NM={school_name}"
+    url = f"https://open.neis.go.kr/hub/schoolInfo?KEY={MEAL_API_KEY}&Type=json&SCHUL_NM={school_name}"
     res = requests.get(url)
     data = res.json()
     if "schoolInfo" not in data:
@@ -1131,7 +1131,7 @@ def show_youtube_search_page():
 
 def main():
     app = MissionAlarmApp()
-    st.sidebar.title("🎯 스케쥴러")
+    st.sidebar.title("📙 공부 도우미")
     st.sidebar.markdown("---")
 
     # 이스터에그 상태 초기화 (앱이 로드될 때마다)
@@ -1159,9 +1159,9 @@ def main():
     # 사이드바 메뉴
     pages = {
         "📆 월간 일정 관리": show_calendar_page,
-        "⏰ 알람 설정": show_alarm_page,
+       # "⏰ 알람 설정": show_alarm_page,
         "❓ 미션 퀴즈": show_quiz_page,
-        "🍱 급식메뉴": show_meals_page,
+        "🍱 급식 메뉴": show_meals_page,
         "⚙️ 설정": show_settings_page,
         "▶️ 마감에 쫓길 때": show_deadline_youtube_page
     }
@@ -1211,7 +1211,7 @@ def main():
         show_study_page()
     elif selected_page == "▶️ 마감에 쫓길 때":
         show_deadline_youtube_page()
-    elif selected_page == "🍱 급식메뉴":
+    elif selected_page == "🍱 급식 메뉴":
         show_meals_page()
     else:
         pages[selected_page](app)
