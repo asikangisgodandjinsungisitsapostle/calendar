@@ -4,4 +4,7 @@ requests
 yfinance
 plotly
 beautifulsoup4
-streamlit-embedcode
+lxml
+html5lib
+openpyxl
+xlrd
