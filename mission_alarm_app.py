@@ -10,7 +10,9 @@ import re
 import requests
 import yfinance as yf
 import plotly.graph_objects as go
+import pandas as pd
 from typing import Dict, List, Any
+
 import streamlit.components.v1 as components
 
 # study 모듈 임포트 (기존 코드 유지)
@@ -719,11 +721,11 @@ def show_youtube_playlist_page(title, playlist_url):
         """
 
         # components에 충분한 높이 주기
-        components.html(html_code, height=600)
+        components.html(html_code, height=600, width=1000)
     else:
         st.error("유효한 YouTube 플레이리스트 링크가 아닙니다.")
 
-        
+
 def show_study_page():
     if study:
         study.run_study_planner()
@@ -732,6 +734,120 @@ def show_study_page():
 def show_deadline_youtube_page():
     st.header("▶️ 마감에 쫓길 때")
     st.video("https://www.youtube.com/watch?v=C3p4QDW3-g8")
+
+API_KEY = "ea52474581cf41c2bf2291ef389adf61"
+
+# 학교 검색 함수
+def search_school(school_name):
+    url = f"https://open.neis.go.kr/hub/schoolInfo?KEY={API_KEY}&Type=json&SCHUL_NM={school_name}"
+    res = requests.get(url)
+    data = res.json()
+    if "schoolInfo" not in data:
+        return []
+    return data["schoolInfo"][1]["row"]
+
+# 급식 조회 함수
+def get_meals(office_code, school_code, start_date, end_date):
+    url = (
+        f"https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}"
+        f"&Type=json&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE={office_code}"
+        f"&SD_SCHUL_CODE={school_code}&MLSV_FROM_YMD={start_date}&MLSV_TO_YMD={end_date}"
+    )
+    res = requests.get(url)
+    data = res.json()
+    if "mealServiceDietInfo" not in data:
+        return []
+    return data["mealServiceDietInfo"][1]["row"]
+
+# 중식 매핑
+def prepare_lunch_map(meals):
+    lunch_map = {}
+    for m in meals:
+        if m["MMEAL_SC_NM"] == "중식":
+            date = pd.to_datetime(m["MLSV_YMD"]).date()
+            menu = m["DDISH_NM"].replace("<br/>", "\n")
+            lunch_map[date] = menu
+    return lunch_map
+
+# 달력 렌더링
+def generate_lunch_calendar(year, month, lunch_map):
+    cal = calendar.Calendar()
+    month_days = cal.monthdatescalendar(year, month)
+    table = "<style>td {vertical-align: top; white-space: pre-wrap; font-size: 13px; padding: 8px;}</style>"
+    table += "<table border='1' style='width: 100%; border-collapse: collapse; text-align: left;'>"
+    table += "<thead><tr>" + "".join(f"<th>{day}</th>" for day in ["월", "화", "수", "목", "금", "토", "일"]) + "</tr></thead><tbody>"
+    for week in month_days:
+        table += "<tr>"
+        for date in week:
+            if date.month != month:
+                table += "<td></td>"
+            else:
+                menu = lunch_map.get(date, "")
+                table += f"<td><strong>{date.day}</strong><br/>{menu}</td>"
+        table += "</tr>"
+    table += "</tbody></table>"
+    return table
+
+# 메인 앱
+def show_meals_page():
+    st.title("🍱 학교 급식 달력 (중식만)")
+
+    school_name = st.text_input("학교 이름을 입력하세요", "", key="school_name_input")
+
+    if school_name:
+        school_list = search_school(school_name)
+
+        if school_list:
+            selected_school = st.selectbox(
+                "학교를 선택하세요",
+                [f"{s['SCHUL_NM']} ({s['ORG_RDNMA']})" for s in school_list],
+                key="school_select"
+            )
+
+            selected_data = school_list[
+                [f"{s['SCHUL_NM']} ({s['ORG_RDNMA']})" for s in school_list].index(selected_school)
+            ]
+            office_code = selected_data["ATPT_OFCDC_SC_CODE"]
+            school_code = selected_data["SD_SCHUL_CODE"]
+
+            # 선택: 오늘 / 이번주 / 이번달
+            option = st.radio("표시할 기간을 선택하세요", ("오늘", "이번 주", "이번 달"))
+
+            today = datetime.date.today()
+
+            if option == "오늘":
+                start_date = end_date = today.strftime("%Y%m%d")
+            elif option == "이번 주":
+                start = today - datetime.timedelta(days=today.weekday())
+                end = start + datetime.timedelta(days=6)
+                start_date = start.strftime("%Y%m%d")
+                end_date = end.strftime("%Y%m%d")
+            elif option == "이번 달":
+                start = today.replace(day=1)
+                last_day = calendar.monthrange(today.year, today.month)[1]
+                end = today.replace(day=last_day)
+                start_date = start.strftime("%Y%m%d")
+                end_date = end.strftime("%Y%m%d")
+
+            meals = get_meals(office_code, school_code, start_date, end_date)
+
+            if meals:
+                lunch_map = prepare_lunch_map(meals)
+
+                if option == "이번 달":
+                    calendar_html = generate_lunch_calendar(today.year, today.month, lunch_map)
+                    st.markdown(calendar_html, unsafe_allow_html=True)
+                else:
+                    # 오늘 / 이번 주는 표 형식으로 표시
+                    df = pd.DataFrame(
+                        [{"날짜": date, "중식": menu} for date, menu in sorted(lunch_map.items())]
+                    )
+                    st.dataframe(df, use_container_width=True)
+            else:
+                st.warning("급식 정보를 찾을 수 없습니다.")
+        else:
+            st.warning("해당 이름의 학교를 찾을 수 없습니다.")
+
 
 def main():
     app = MissionAlarmApp()
@@ -759,8 +875,9 @@ def main():
         "📆 월간 일정 관리": show_calendar_page,
         "⏰ 알람 설정": show_alarm_page,
         "❓ 미션 퀴즈": show_quiz_page,
+        "🍱 급식메뉴": show_meals_page,  # 수정된 부분
         "⚙️ 설정": show_settings_page,
-        "▶️ 마감에 쫓길 때" : show_deadline_youtube_page
+        "▶️ 마감에 쫓길 때": show_deadline_youtube_page
     }
 
     # study 모듈이 성공적으로 임포트되었을 때만 '스터디' 메뉴 추가
@@ -796,6 +913,8 @@ def main():
         show_study_page()
     elif selected_page == "▶️ 마감에 쫓길 때":
         show_deadline_youtube_page()
+    elif selected_page == "🍱 급식메뉴":
+        show_meals_page()  # 수정된 부분
     else:
         pages[selected_page](app)
 
