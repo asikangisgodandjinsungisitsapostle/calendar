@@ -94,7 +94,7 @@ class MissionAlarmApp:
             'created_at': datetime.datetime.now().isoformat()
         })
         self.save_data()
-
+        
         # 이스터에그 트리거
         if "mp3" in task.lower():
             st.session_state.easter_egg_mp3 = True
@@ -108,6 +108,8 @@ class MissionAlarmApp:
             st.session_state.easter_egg_kino = True
         if "bocchitherock" in task.lower():
             st.session_state.easter_egg_bocchitherock = True
+        if "youtube" in task.lower():
+            st.session_state.easter_egg_youtube = True
 
     def get_schedules(self, date):
         """특정 날짜의 일정 조회"""
@@ -502,6 +504,8 @@ def show_mp3_player_page():
         "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
         "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
         "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
+        "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing",
         "https://drive.google.com/file/d/1XmZFMM36-p8E26BE9o0GhcPGhiglhEsS/view?usp=sharing"
     ]
 
@@ -735,7 +739,7 @@ def show_deadline_youtube_page():
     st.header("▶️ 마감에 쫓길 때")
     st.video("https://www.youtube.com/watch?v=C3p4QDW3-g8")
 
-API_KEY = "ea52474581cf41c2bf2291ef389adf61"
+MEAL_API_KEY = "ea52474581cf41c2bf2291ef389adf61"
 
 # 학교 검색 함수
 def search_school(school_name):
@@ -749,7 +753,7 @@ def search_school(school_name):
 # 급식 조회 함수
 def get_meals(office_code, school_code, start_date, end_date):
     url = (
-        f"https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}"
+        f"https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={MEAL_API_KEY}"
         f"&Type=json&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE={office_code}"
         f"&SD_SCHUL_CODE={school_code}&MLSV_FROM_YMD={start_date}&MLSV_TO_YMD={end_date}"
     )
@@ -848,13 +852,236 @@ def show_meals_page():
         else:
             st.warning("해당 이름의 학교를 찾을 수 없습니다.")
 
+# ✅ 테스트용 YouTube API 키
+API_KEY = "AIzaSyDv3dWd4U9AqsMS2DKwzPBbqWy3a6YkV-g"
+
+# 🔍 유튜브 검색 함수 (개선된 버전)
+def search_youtube(query, max_results=50):
+    try:
+        from bs4 import BeautifulSoup
+        
+        videos = []
+        
+        # 여러 페이지에서 검색 결과 수집
+        for page in range(3):  # 3페이지까지 시도
+            try:
+                # YouTube 검색 URL (페이지별)
+                if page == 0:
+                    search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+                else:
+                    search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}&sp=CAI%253D&page={page+1}"
+                
+                # User-Agent 설정
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                }
+                
+                response = requests.get(search_url, headers=headers, timeout=10)
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # 여러 방법으로 비디오 정보 추출
+                page_videos = []
+                
+                # 방법 1: ytInitialData에서 추출
+                for script in soup.find_all('script'):
+                    script_text = str(script)
+                    if 'var ytInitialData' in script_text:
+                        import re
+                        import json
+                        
+                        try:
+                            data_match = re.search(r'var ytInitialData = ({.*?});', script_text, re.DOTALL)
+                            if data_match:
+                                data = json.loads(data_match.group(1))
+                                
+                                # 검색 결과에서 비디오 정보 추출
+                                if 'contents' in data:
+                                    contents = data['contents']
+                                    if 'twoColumnSearchResultsRenderer' in contents:
+                                        search_results = contents['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
+                                        
+                                        for item in search_results:
+                                            if 'videoRenderer' in item:
+                                                video = item['videoRenderer']
+                                                video_id = video.get('videoId', '')
+                                                title = video.get('title', {}).get('runs', [{}])[0].get('text', '')
+                                                thumbnail = video.get('thumbnail', {}).get('thumbnails', [{}])[-1].get('url', '')
+                                                
+                                                if video_id and title and video_id not in [v['id'] for v in videos]:
+                                                    page_videos.append({
+                                                        'id': video_id,
+                                                        'title': title,
+                                                        'link': f"https://www.youtube.com/watch?v={video_id}",
+                                                        'thumbnail': thumbnail
+                                                    })
+                        except:
+                            pass
+                
+                # 방법 2: 정규식으로 추출
+                if not page_videos:
+                    script_text = str(soup)
+                    video_ids = re.findall(r'"videoId":"([^"]+)"', script_text)
+                    titles = re.findall(r'"title":"([^"]+)"', script_text)
+                    
+                    for i, video_id in enumerate(video_ids):
+                        if i < len(titles) and video_id not in [v['id'] for v in videos]:
+                            page_videos.append({
+                                'id': video_id,
+                                'title': titles[i],
+                                'link': f"https://www.youtube.com/watch?v={video_id}",
+                                'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
+                            })
+                
+                videos.extend(page_videos)
+                
+                # 중복 제거
+                seen_ids = set()
+                unique_videos = []
+                for video in videos:
+                    if video['id'] not in seen_ids:
+                        seen_ids.add(video['id'])
+                        unique_videos.append(video)
+                
+                videos = unique_videos
+                
+                if len(videos) >= max_results:
+                    break
+                    
+                # 페이지 간 딜레이
+                time.sleep(1)
+                
+            except Exception as e:
+                st.warning(f"페이지 {page+1} 로드 중 오류: {e}")
+                continue
+        
+        return videos[:max_results]
+        
+    except Exception as e:
+        st.error(f"YouTube 검색 중 오류 발생: {e}")
+        return []
+
+# 🖥️ Streamlit 앱 UI (동적 로딩 추가)
+def show_youtube_search_page():
+    st.header("▶️ YouTube 검색")
+    st.write("YouTube에서 영상을 검색하고 클릭하면 재생됩니다.")
+
+    query = st.text_input("검색어를 입력하세요:", key="youtube_search_query")
+
+    if query:
+        # 세션 상태 초기화
+        if 'youtube_results' not in st.session_state:
+            st.session_state.youtube_results = []
+        if 'youtube_current_page' not in st.session_state:
+            st.session_state.youtube_current_page = 0
+        if 'youtube_loading' not in st.session_state:
+            st.session_state.youtube_loading = False
+
+        # 검색 버튼
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("🔍 검색", key="youtube_search_button"):
+                with st.spinner("검색 중..."):
+                    st.session_state.youtube_results = search_youtube(query, max_results=50)
+                    st.session_state.youtube_current_page = 0
+                    st.rerun()
+
+        # 결과가 있으면 표시
+        if st.session_state.youtube_results:
+            st.success(f"{len(st.session_state.youtube_results)}개의 영상이 검색되었습니다.")
+            
+            # 페이지당 21개씩 표시
+            items_per_page = 21
+            total_pages = (len(st.session_state.youtube_results) + items_per_page - 1) // items_per_page
+            
+            # 현재 페이지의 결과
+            start_idx = st.session_state.youtube_current_page * items_per_page
+            end_idx = start_idx + items_per_page
+            current_results = st.session_state.youtube_results[start_idx:end_idx]
+            
+            # 페이지 정보
+            st.info(f"페이지 {st.session_state.youtube_current_page + 1}/{total_pages} - {len(current_results)}개 영상")
+            
+            # 그리드 레이아웃으로 표시 (3열 x 7행 = 21개)
+            cols = st.columns(3)
+            for i, video in enumerate(current_results):
+                col = cols[i % 3]
+                
+                with col:
+                    try:
+                        # 썸네일과 제목을 카드 형태로 표시
+                        st.markdown(f"""
+                        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin: 5px;">
+                            <a href="{video['link']}" target="_blank" style="text-decoration: none; color: inherit;">
+                                <img src="{video['thumbnail']}" width="100%" style="border-radius: 4px;">
+                                <p style="margin-top: 8px; font-weight: bold; font-size: 14px;">{video['title']}</p>
+                            </a>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                    except Exception as e:
+                        st.error(f"비디오 표시 중 오류: {e}")
+            
+            # 네비게이션 버튼
+            st.markdown("---")
+            nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns(5)
+            
+            with nav_col1:
+                if st.button("◀️ 이전", disabled=(st.session_state.youtube_current_page == 0)):
+                    st.session_state.youtube_current_page = max(0, st.session_state.youtube_current_page - 1)
+                    st.rerun()
+            
+            with nav_col2:
+                st.write(f"페이지 {st.session_state.youtube_current_page + 1}/{total_pages}")
+            
+            with nav_col3:
+                if st.button("다음 ▶️", disabled=(st.session_state.youtube_current_page >= total_pages - 1)):
+                    st.session_state.youtube_current_page = min(total_pages - 1, st.session_state.youtube_current_page + 1)
+                    st.rerun()
+            
+            with nav_col4:
+                if st.button("처음으로"):
+                    st.session_state.youtube_current_page = 0
+                    st.rerun()
+            
+            with nav_col5:
+                if st.button("더 로드", disabled=st.session_state.youtube_loading):
+                    st.session_state.youtube_loading = True
+                    with st.spinner("더 많은 결과를 로드 중..."):
+                        # 추가 검색 결과 로드
+                        additional_results = search_youtube(query, max_results=50)
+                        # 중복 제거하면서 추가
+                        existing_ids = {v['id'] for v in st.session_state.youtube_results}
+                        new_results = [v for v in additional_results if v['id'] not in existing_ids]
+                        st.session_state.youtube_results.extend(new_results)
+                        st.session_state.youtube_loading = False
+                        st.rerun()
+            
+            # 자동 로드 옵션
+            if st.checkbox("자동으로 더 로드", key="auto_load"):
+                if st.session_state.youtube_current_page >= total_pages - 1:
+                    # 마지막 페이지에 도달하면 자동으로 더 로드
+                    if not st.session_state.youtube_loading:
+                        st.session_state.youtube_loading = True
+                        with st.spinner("자동으로 더 많은 결과를 로드 중..."):
+                            additional_results = search_youtube(query, max_results=50)
+                            existing_ids = {v['id'] for v in st.session_state.youtube_results}
+                            new_results = [v for v in additional_results if v['id'] not in existing_ids]
+                            st.session_state.youtube_results.extend(new_results)
+                            st.session_state.youtube_loading = False
+                            st.rerun()
+        else:
+            st.warning("검색 결과가 없습니다.")
+
 
 def main():
     app = MissionAlarmApp()
     st.sidebar.title("🎯 스케쥴러")
     st.sidebar.markdown("---")
-
-    
 
     # 이스터에그 상태 초기화 (앱이 로드될 때마다)
     if 'easter_egg_mp3' not in st.session_state:
@@ -869,13 +1096,15 @@ def main():
         st.session_state.easter_egg_kino = False
     if 'easter_egg_bocchitherock' not in st.session_state:
         st.session_state.easter_egg_bocchitherock = False
+    if 'easter_egg_youtube' not in st.session_state:
+        st.session_state.easter_egg_youtube = False
 
     # 사이드바 메뉴
     pages = {
         "📆 월간 일정 관리": show_calendar_page,
         "⏰ 알람 설정": show_alarm_page,
         "❓ 미션 퀴즈": show_quiz_page,
-        "🍱 급식메뉴": show_meals_page,  # 수정된 부분
+        "🍱 급식메뉴": show_meals_page,
         "⚙️ 설정": show_settings_page,
         "▶️ 마감에 쫓길 때": show_deadline_youtube_page
     }
@@ -897,7 +1126,9 @@ def main():
         pages["🎵 Kino"] = lambda: show_youtube_playlist_page("Kino", "https://www.youtube.com/watch?v=06N4m8iH_DY&list=PL1wBAksWomErk77CKALQTrgaSE5foHeYi&index=1")
     if st.session_state.easter_egg_bocchitherock:
         pages["🎸 Bocchi the Rock!"] = lambda: show_youtube_playlist_page("Bocchi the Rock!", "https://www.youtube.com/watch?v=SDk1RA4g8CA&list=PLEAVhzkMlRMFB3lvPiaabqY9KbkRi0rLQ")
-
+    if st.session_state.easter_egg_youtube:
+        pages["▶️ YouTube 검색"] = show_youtube_search_page
+        
     selected_page = st.sidebar.radio("페이지 선택", list(pages.keys()))
 
     # 선택된 페이지 렌더링
@@ -907,21 +1138,21 @@ def main():
         "📈 주식 차트",
         "🎸 ASIAN KUNG-FU GENERATION",
         "🎵 Kino", 
-        "🎸 Bocchi the Rock!"]:
+        "🎸 Bocchi the Rock!",
+        "▶️ YouTube 검색"]:
         pages[selected_page]()
     elif selected_page == "📙 스터디":
         show_study_page()
     elif selected_page == "▶️ 마감에 쫓길 때":
         show_deadline_youtube_page()
     elif selected_page == "🍱 급식메뉴":
-        show_meals_page()  # 수정된 부분
+        show_meals_page()
     else:
         pages[selected_page](app)
 
-
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 제작자 정보")
-    st.sidebar.markdown("[###instagram](https://www.instagram.com/adenosine_triphosphates/)")
+    st.sidebar.markdown("[instagram](https://www.instagram.com/adenosine_triphosphates/)")
 
 if __name__ == "__main__":
     main()
